@@ -31,7 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $remaining_time = ($last_failed + 300) - time();
             $minutes = floor($remaining_time / 60);
             $seconds = $remaining_time % 60;
-            $message = "🚨 Account blocked for $minutes min $seconds sec.";
+            $message = "Account blocked for $minutes min $seconds sec.";
         } else {
             if ($user['password'] == $password) {
                 $_SESSION['username'] = $username;
@@ -42,12 +42,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $conn->query("UPDATE users 
                               SET failed_attempts = failed_attempts + 1, last_failed_login = NOW() 
                               WHERE username='$username'");
-                $attempts++;
-                $message = "❌ Invalid password. Attempts: $attempts/3";
+
+                $user = $conn->query("SELECT * FROM users WHERE username='$username'")->fetch_assoc();
+                $attempts = $user['failed_attempts'];
+
+                if ($attempts >= 3) {
+                    $remaining_time = 300;
+                    $message = "Account is now blocked for 5 minutes.";
+                } else {
+                    $message = "Invalid password. Attempts: $attempts/3";
+                }
             }
         }
     } else {
-        $message = "❌ Invalid username.";
+        $message = "Invalid username.";
     }
 } else {
     $query = "SELECT * FROM users WHERE username='admin'";
@@ -82,12 +90,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php endif; ?>
 
         <?php if ($attempts > 0 && $attempts < 3): ?>
-            <p class="text-yellow-600 text-center mb-2">⚠ You have used <?= $attempts ?>/3 attempts.</p>
+            <p class="text-yellow-600 text-center mb-2">
+                ⚠ You have used <?= $attempts ?>/3 attempts.
+            </p>
         <?php endif; ?>
 
         <?php if ($remaining_time > 0): ?>
             <p class="text-red-600 text-center mb-4">
-                ⏳ Try again in <span id="countdown"><?= $remaining_time ?></span> seconds
+                Try again in <span id="countdown"><?= $remaining_time ?></span> seconds
             </p>
         <?php endif; ?>
 
@@ -95,13 +105,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div>
                 <label class="block text-gray-700 font-semibold mb-1">Username</label>
                 <input type="text" name="username" required 
-                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                       <?= $remaining_time > 0 ? 'disabled' : '' ?>>
             </div>
 
             <div>
                 <label class="block text-gray-700 font-semibold mb-1">Password</label>
                 <input type="password" name="password" required 
-                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                       <?= $remaining_time > 0 ? 'disabled' : '' ?>>
             </div>
 
             <button type="submit"
@@ -120,7 +132,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         const interval = setInterval(() => {
             if (timeLeft <= 0) {
                 clearInterval(interval);
-                location.reload(); 
+                location.reload();  
             } else {
                 timeLeft--;
                 countdown.innerText = timeLeft;

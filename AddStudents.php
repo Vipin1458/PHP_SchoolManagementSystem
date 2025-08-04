@@ -1,12 +1,11 @@
 <?php
 include "functions.php";
 checkLogin();
+include "config.php";
 
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    include "config.php";
-
     $name = sanitize($_POST['name']);
     $reg_no = sanitize($_POST['reg_no']);
     $age = intval($_POST['age']);
@@ -14,6 +13,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $phone = sanitize($_POST['phone']);
     $course = sanitize($_POST['course']);
 
+   
     if (!preg_match("/^[a-zA-Z ]{2,}$/", $name)) {
         $message = "Name must have at least 2 letters and only alphabets.";
     } elseif (!preg_match("/^REG-[0-9]{4}-[0-9]{4}$/", $reg_no)) {
@@ -22,19 +22,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "Age must be between 18 and 25.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $message = "Invalid email format.";
-    } elseif (!preg_match("/^[0-9]{10}$/", $phone)) {
-        $message = "Phone must be 10 digits.";
+    } elseif (!empty($phone) && !preg_match("/^[0-9]{10}$/", $phone)) {
+        $message = "Phone must be 10 digits if provided.";
     } else {
-        $sql = "INSERT INTO students (name, reg_no, age, email, phone, course) 
-                VALUES ('$name','$reg_no','$age','$email','$phone','$course')";
-        if ($conn->query($sql)) {
-            $message = "✅ Student Registered Successfully!";
+      
+        $check_reg = $conn->query("SELECT id FROM students WHERE reg_no='$reg_no'");
+        if ($check_reg->num_rows > 0) {
+            $message = " This registration number already exists. Please use another one.";
         } else {
-            $message = "❌ Error: " . $conn->error;
+            $sql = "INSERT INTO students (name, reg_no, age, email, phone, course) 
+                    VALUES ('$name','$reg_no','$age','$email','$phone','$course')";
+            if ($conn->query($sql)) {
+                $message = "Student Registered Successfully!";
+            } else {
+                $message = "Error: " . $conn->error;
+            }
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -47,7 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <h2 class="text-2xl font-bold text-center text-blue-600 mb-4">Register Student</h2>
 
         <?php if ($message): ?>
-            <div class="mb-4 px-4 py-2 rounded <?= strpos($message, '✅') !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' ?>">
+            <div class="mb-4 px-4 py-2 rounded <?= strpos($message, 'Successfully') !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' ?>">
                 <?= $message ?>
             </div>
         <?php endif; ?>
@@ -79,7 +86,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div>
                 <label class="block text-gray-700 font-semibold mb-1">Phone</label>
-                <input type="text" name="phone" required 
+                <input type="text" name="phone"  
                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             </div>
 
